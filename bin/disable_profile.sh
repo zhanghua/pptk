@@ -1,7 +1,7 @@
 #/usr/bin/env bash
 
-profile_data_dir='/opt/stack/data/swift/profile'
-sudo mkdir -p ${profile_data_dir}
+PROFILE_DATA_DIR='/opt/stack/data/swift/profile'
+sudo mkdir -p ${PROFILE_DATA_DIR}
 
 function print_usage() {
     set echo off
@@ -20,11 +20,11 @@ function configure_paste() {
     fi
 
     echo 'disabling repoze.profile in paste config file '${paste}
-    sudo sed -e 's/^pipeline = profile/pipeline =/g' -i ${paste}
+    sudo sed -e 's/^pipeline = profile /pipeline = /g' -i ${paste}
 }
 
-server_type=$1
-case $server_type in
+SERVER_TYPE=$1
+case $SERVER_TYPE in
     "all")
         configure_paste "/etc/swift/proxy-server.conf"
         configure_paste "/etc/swift/account-server/1.conf"
@@ -41,9 +41,9 @@ case $server_type in
         configure_paste "/etc/swift/proxy-server.conf"
         ;;
      "account" | "container" | "object")
-        configure_paste="/etc/swift/${server_type}-server/1.conf"
-        configure_paste="/etc/swift/${server_type}-server/2.conf"
-        configure_paste="/etc/swift/${server_type}-server/3.conf"
+        configure_paste="/etc/swift/${SERVER_TYPE}-server/1.conf"
+        configure_paste="/etc/swift/${SERVER_TYPE}-server/2.conf"
+        configure_paste="/etc/swift/${SERVER_TYPE}-server/3.conf"
         ;;
      * )
         print_usage
