@@ -27,6 +27,7 @@ import marshal
 import re
 import subprocess
 import json
+import glob
 from functools import cmp_to_key
 from dictformat import format_dict
 from pstats import Stats
@@ -179,13 +180,31 @@ if __name__ == '__main__':
             print >> self.stream, "  that match it are printed."
 
         def do_add(self, line):
-            if self.stats:
-                self.stats.add(line)
-            else:
+            print "adding profile", line
+            if not self.stats:
                 print >> self.stream, "No statistics object is loaded."
+                return 0
+            if "*" in line or "?" in line:
+                    pathes = glob.glob(line)
+                    print >> self.stream, "files: ", pathes
+                    for p in pathes:
+                        self.do_add(p)
+                    return
+            if not os.path.isfile(line):
+                print >> self.stream, "The file %s doesn't exist." % line
+                return 0
+            if self.is_loaded("    " + line):
+                print >> self.stream, "This profile '%s' has already been loaded." % line
+                return 0
+            self.stats.add(line)
             return 0
         def help_add(self):
             print >> self.stream, "Add profile info from given file to current statistics object."
+        def is_loaded(self, fn):
+            for f in self.stats.files:
+                if f.endswith(fn):
+                    return True
+            return False
 
         def do_callees(self, line):
             return self.generic('print_callees', line)
@@ -211,6 +230,15 @@ if __name__ == '__main__':
             print >> self.stream, "Leave the profile brower."
 
         def do_read(self, line):
+            if "*" in line or "?" in line:
+                pathes = glob.glob(line)
+                print >> self.stream, "This is an unix path pattern which match files: "
+                print >> self.stream, pathes
+                if pathes and len(pathes)>1:
+                    self.stats = Stats(pathes[0])
+                    for p in pathes[1:]:
+                        self.do_add(p)
+                    return
             if line:
                 try:
                     self.stats = Stats(line)
@@ -334,7 +362,10 @@ if __name__ == '__main__':
             ts = time.time()
             tmp_profile = '/tmp/runsnake.profile.' + str(ts)
             self.stats.dump_stats(tmp_profile)
-            subprocess.call(['runsnake', tmp_profile])
+            try:
+                subprocess.call(['runsnake', tmp_profile])
+            except:
+                print >> self.stream, "Can not launch runsnake. please verify it has been installed."
             os.remove(tmp_profile)
             
         def help_runsnake(self):
@@ -354,6 +385,8 @@ if __name__ == '__main__':
                 conv.output(grind)
                 subprocess.call(['kcachegrind', tmp_cachegrind_file])
                 os.remove(tmp_cachegrind_file)
+            except:
+                print >> self.stream, "Can not launch kcachegrind. please verify it has been installed."
             finally:
                 if grind is not None:
                     grind.close()
@@ -363,7 +396,10 @@ if __name__ == '__main__':
             print >> self.stream, "Draw call tree by kcachegrind."
             
     import sys
-    initprofile = sys.argv or sys.argv[1]
+    if len(sys.argv) > 1:
+        initprofile = sys.argv[1]
+    else:
+        initprofile = None
     try:
         browser = ProfileBrowser(initprofile)
         print >> browser.stream, "Welcome to the profile statistics browser."
