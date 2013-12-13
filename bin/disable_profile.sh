@@ -1,6 +1,6 @@
 #/usr/bin/env bash
 
-PROFILE_DATA_DIR='/opt/stack/data/swift/profile'
+PROFILE_DATA_DIR='/tmp/log/profile/swift/'
 sudo mkdir -p ${PROFILE_DATA_DIR}
 
 function print_usage() {
@@ -15,11 +15,11 @@ function configure_paste() {
     [ ! -e "$paste" ] && echo "Skip file ${paste} since it does not exist" && return 0
 
     if ! egrep filter:profile ${paste} > /dev/null; then
-        echo "Exit since repoze.profile has not been configured."
+        echo "Exit since profile middleware has not been configured."
         return 0
     fi
 
-    echo 'disabling repoze.profile in paste config file '${paste}
+    echo 'disabling profile middleware in paste config file '${paste}
     sudo sed -e 's/^pipeline = profile /pipeline = /g' -i ${paste}
 }
 

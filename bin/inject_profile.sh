@@ -3,7 +3,7 @@
 SERVER_TYPE=$1
 PROFILE_NAME=$2
 
-PROFILE_DATA_DIR='/opt/stack/data/swift/profile'
+PROFILE_DATA_DIR='/tmp/log/profile/swift/'
 sudo mkdir -p ${PROFILE_DATA_DIR}
 
 function print_usage() {
@@ -21,18 +21,18 @@ function configure_paste() {
     [ ! -e "$paste" ] && echo "Skip file ${paste} since it doesn't exist." && return 0
                   
     if egrep filter:profile ${paste} > /dev/null; then
-        echo "Exit since repoze.profile has already been configured in ${paste}."
+        echo "Exit since profile middleware has already been configured in ${paste}."
         return 0
     fi
 
-    echo 'injecting repoze.profile into paste config file '${paste}
+    echo 'injecting profile middleware into paste config file '${paste}
     sudo sed -e 's/^pipeline = /pipeline = profile /g' -i $paste
     [ -n "$profile" ] && [ ! -e "$profile" ] && sudo mkdir -p ${PROFILE_DATA_DIR}/${profile}
     
     sudo cat << EOF >> $paste
     
 [filter:profile]
-use = egg:repoze.profile
+use = egg:swift#profile
 log_filename_prefix = ${PROFILE_DATA_DIR}/${profile}/${server}.profile
 cachegrind_filename = ${PROFILE_DATA_DIR}/${profile}/cachegrind.out.${server}
 dump_interval = 5

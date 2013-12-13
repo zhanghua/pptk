@@ -28,9 +28,16 @@ import re
 import subprocess
 import json
 import glob
+import tempfile
 from functools import cmp_to_key
 from dictformat import format_dict
 from pstats import Stats
+try:
+    import matplotlib.pyplot as plt
+except:
+    pass
+import numpy as np
+
 __all__ = ["Stats"]
 
 
@@ -371,7 +378,7 @@ if __name__ == '__main__':
         def help_runsnake(self):
             print >> self.stream, "Draw square box by runsnake."
             
-        def do_kcachgrind(self, line):
+        def do_kcachegrind(self, line):
             if not self.stats:
                 print >> self.stream, "Need to load profile at first."
                 return
@@ -379,22 +386,72 @@ if __name__ == '__main__':
             conv = pyprof2calltree.CalltreeConverter(self.stats)
             grind = None
             ts = time.time()
-            tmp_cachegrind_file = '/tmp/cachegrind.profile.' + str(ts)
+            tmp_cachegrind_file = tempfile.mkstemp('.profile', 'cachegrind-')
+            print >> self.stream, tmp_cachegrind_file
             try:
-                grind = file(tmp_cachegrind_file, 'wb')
-                conv.output(grind)
+                #grind = open(tmp_cachegrind_file, 'wb')
+                conv.output(tmp_cachegrind_file)
                 subprocess.call(['kcachegrind', tmp_cachegrind_file])
                 os.remove(tmp_cachegrind_file)
-            except:
+            except TypeError:
+                print >> self.stream, "Can not convert into grind format."
+            except OSError:
                 print >> self.stream, "Can not launch kcachegrind. please verify it has been installed."
+            except Exception as ex:
+                print >> self.stream, "Error:", type(ex)
             finally:
                 if grind is not None:
                     grind.close()
 
         
-        def help_kcachgrind(self):
+        def help_kcachegrind(self):
             print >> self.stream, "Draw call tree by kcachegrind."
             
+        def do_plot(self, line):
+            args = line.split()
+            if not self.stats or not line or len(args)<3:
+                print >> self.stream, "Need to load profile at first. "
+                print >> self.stream, "Usage: plot bar cc|nc|tt|ct [query] limit"
+                print >> self.stream, "       plot pie cc|nc|tt|ct [query] limit"
+                return
+            limit = 10
+            query = ''
+            
+            
+            [type, counter, query, limit]  = ['bar', 'cc', '', int(args[2])] if len(args) == 3  \
+                               else [args[0], args[1],args[2], int(args[3])]
+            print query, limit
+            nfls = []
+            performance=[]
+            stats_dict = self.stats.stats
+            width, list = self.stats.get_print_list([query])
+            for func in list:
+                cc, nc, tt, ct, callers = stats_dict[func]
+                matrix = {'cc': cc, 'nc': nc, 'tt': tt, 'ct':ct }
+                names = {'cc': 'Call Count', 'nc': 'NC', 'tt': 'Total Time', 'ct':'Cumulative Time' }
+                if limit<1:
+                    break
+                nfls.append(func[2])
+                performance.append(matrix[counter])
+                limit-=1
+            print "Functions: %s" % nfls
+            print "Performance: %s" % performance
+            y_pos = np.arange(len(nfls))
+            error = np.random.rand(len(nfls))
+            axes = plt.gca()
+            if type == 'bar':
+                plt.barh(y_pos, performance, xerr=error, align='center', alpha=0.4)
+                plt.yticks(y_pos, nfls)
+                plt.xlabel(names[counter])
+            elif type == 'pie':
+                plt.pie(x=performance, explode=None, labels=nfls, shadow=True)
+            plt.title('Profile Statistics (by %s)' % counter)
+
+            plt.show()
+        
+        def help_plot(self):
+            print >> self.stream, "Draw plot based on current data."
+        
     import sys
     if len(sys.argv) > 1:
         initprofile = sys.argv[1]

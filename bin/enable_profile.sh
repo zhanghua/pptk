@@ -1,6 +1,6 @@
 #/usr/bin/env bash
 
-PROFILE_DATA_DIR='/opt/stack/data/swift/profile'
+PROFILE_DATA_DIR='/tmp/log/profile/swift/'
 sudo mkdir -p ${PROFILE_DATA_DIR}
 
 SERVER_TYPE=$1
@@ -21,14 +21,14 @@ function configure_paste() {
     [ ! -e "$paste" ] && echo "Skip file ${paste} since it does not exist" && return 0
 
     if ! egrep filter:profile ${paste} > /dev/null; then
-        echo "Exit since profile has not been configured. \
+        echo "Exit since profile middleware has not been configured. \
               you can use inject_profile tool to configure it."
         return 0
     fi
     if egrep "pipeline = profile" ${paste} > /dev/null; then
         echo "The paste file $paste has configured profile."
     else
-        echo "enabling repoze.profile into paste config file ${paste}."
+        echo "enabling profile middleware into paste config file ${paste}."
         sudo sed -e 's/^pipeline = /pipeline = profile /g' -i $paste
     fi
     
